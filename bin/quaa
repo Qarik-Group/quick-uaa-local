@@ -55,7 +55,7 @@ faketty() {
 validate_vars_file() {
     if [ ! -e $vars_file ]; then
       cat >> $vars_file <<-YAML
-route: "https://localhost:${uaa_port:-8080}"
+route: "localhost:${uaa_port:-8080}"
 db_scheme: postgresql
 db_username: "${db_username:-$(whoami)}"
 db_host: "${db_host:-localhost}"
