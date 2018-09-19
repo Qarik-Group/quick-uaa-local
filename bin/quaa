@@ -175,6 +175,9 @@ up() {
     build_custom_war
 
     (>&2 echo)
+    export UAA_URL=$(public_url)
+    export LOGIN_URL=$(public_url)
+    export JBP_CONFIG_SPRING_AUTO_RECONFIGURATION='{enabled: true}'
 }
 
 down() {
