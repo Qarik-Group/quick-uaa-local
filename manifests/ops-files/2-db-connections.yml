@@ -1,0 +1,12 @@
+- type: replace
+  path: /database/maxactive
+  value: ((db_maxactive))
+
+- type: replace
+  path: /database/maxidle
+  value: ((db_maxidle))
+
+- type: replace
+  path: /database/minidle
+  value: ((db_minidle))
+

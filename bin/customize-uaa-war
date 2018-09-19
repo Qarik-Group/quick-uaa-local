@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# Customize UAA theme/assets
+#
+# This script was written with ideas from https://github.com/18F/uaa-customized-boshrelease/tree/master/jobs/uaa-customized
+
+repo_root=$(dirname $(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd))
+
+set -eu
+
+project_root=${UAADEPLOY_PROJECT_ROOT:-${repo_root}}
+custom_assets=${custom_assets:-${project_root}/custom}
+war_downloads=~/.uaa/server/downloads
+
+version=$(grep uaa-deployment ${repo_root}/.versions | cut -d= -f2)
+uaa_version=$(grep "^uaa-server=" ${repo_root}/.versions | cut -d= -f2)
+custom_build_name=custom
+[[ -f ${project_root}/vars.yml ]] && {
+  custom_build_name=$(bosh int vars.yml --path /route | sed -e "s%\.%-%g");
+}
+uaa_src_file="uaa-${uaa_version}.war"
+uaa_build_file="uaa-${uaa_version}-${custom_build_name}.war"
+
+usage() {
+  echo "customize-uaa-war v${version:-(development)}"
+  echo "> Re-build ${uaa_src_file} with customized assets"
+  echo "  build      -- build new .war"
+  echo "  test       -- exit 0 if custom build exists, else exit 1"
+  echo "  init [dir] -- extract current theme into custom/ for modification (or alternate dir/)"
+  exit 1
+}
+
+src_war_path() {
+    local war_path=~/.uaa/server/downloads/uaa-${uaa_version}.war
+
+    mkdir -p $(dirname ${war_path})
+    if [[ ! -f ${war_path} ]]; then
+      (>&2 echo "downloading uaa '${uaa_version}' into: ~/.uaa/server/downloads/")
+      local url=https://github.com/starkandwayne/uaa-war-releases/releases/download/v${uaa_version}/cloudfoundry-identity-uaa-${version}.war
+      curl -s -L -o ${war_path} ${url}
+    fi
+    echo ${war_path}
+}
+
+build_war_path() {
+  local war_dir=$(dirname $(src_war_path))
+  echo "${war_dir}/${uaa_build_file}"
+}
+
+_build() {
+  if [[ ! -d ${custom_assets}/resources && ! -d ${custom_assets}/web ]]; then
+    echo "Skipping build of custom ${uaa_src_file} -- no custom/resources nor custom/web assets folder."
+    exit 0
+  fi
+  cp -a $(src_war_path) $(build_war_path)
+
+  WARFILE=$(build_war_path)
+  pushd ${custom_assets}
+  if [[ -d templates ]]; then
+    echo "Adding custom templates"
+    JARFILE=$(unzip -v "${WARFILE}" | grep cloudfoundry-identity-server- | awk '{print $8}')
+
+    unzip "${WARFILE}" "${JARFILE}"
+    zip -r "${JARFILE}" templates
+    zip "$WARFILE" "$JARFILE"
+    rm -rf "$JARFILE" WEB-INF
+  fi
+
+  if [[ -d resources ]]; then
+    echo "Adding custom/resources assets"
+    zip -r "${WARFILE}" resources
+  fi
+
+  echo "Converted: $(src_war_path)"
+  echo "       To: ${WARFILE}"
+}
+
+_test() {
+  [[ -d ${custom_assets}/resources || -d ${custom_assets}/web ]]
+}
+
+_init() {
+  custom_assets=${1:-${custom_assets}}
+
+  [[ -d ${custom_assets} ]] && {
+    echo "Exiting. ${custom_assets}/ directory already exists."
+    exit 1
+  }
+  JARFILE=$(unzip -v "$(src_war_path)" | grep cloudfoundry-identity-server- | awk '{print $8}')
+  mkdir -p ${custom_assets}
+  cd ${custom_assets}
+  unzip "$(src_war_path)" "${JARFILE}" 'resources/**/*'
+
+  unzip "${JARFILE}" 'templates/**/*'
+  rm -rf "${JARFILE}"
+  rm -rf WEB-INF
+}
+
+case "${1:-usage}" in
+  build)
+    shift
+    _build "$@"
+    ;;
+  test)
+    shift
+    _test "$@"
+    ;;
+  init)
+    shift
+    _init "$@"
+    ;;
+  *)
+    usage
+    exit 1
+    ;;
+esac

@@ -1,0 +1,89 @@
+issuer:
+  uri: https://((route))
+
+encryption:
+  encryption_keys:
+  - label: uaa-encryption-key-1
+    passphrase: ((uaa_encryption_key_1))
+  active_key_label: uaa-encryption-key-1
+
+scim:
+  users:
+  - admin|((admin_user_password))|admin||||uaa
+  userids_enabled: true
+  user:
+    override: true
+
+require_https: true
+
+oauth:
+  authorize:
+    ssl: true
+  clients:
+    uaa_admin:
+      override: true
+      authorized-grant-types: client_credentials
+      scope: ""
+      authorities: clients.read,clients.write,clients.secret,uaa.admin,scim.read,scim.write,password.write
+      secret: ((admin_client_secret))
+  user:
+    authorities:
+    - openid
+    - scim.me
+    - password.write
+    - uaa.user
+    - uaa.offline_token
+
+jwt:
+  token:
+    refresh:
+      format: opaque
+    policy:
+      accessTokenValiditySeconds: 43200
+      refreshTokenValiditySeconds: 2592000
+      global:
+        accessTokenValiditySeconds: 43200
+        refreshTokenValiditySeconds: 2592000
+      activeKeyId: uaa-jwt-key-1
+      keys:
+        uaa-jwt-key-1:
+          signingKey: ((uaa_jwt_signing_key.private_key))
+
+login:
+  selfServiceLinksEnabled: false
+  serviceProviderKey: ((uaa_service_provider_ssl.private_key))
+  serviceProviderKeyPassword: "" # TODO: Remove this when UAA defaults this value
+  serviceProviderCertificate: ((uaa_service_provider_ssl.certificate))
+
+assetBaseUrl: /resources/oss
+
+zones:
+  internal:
+    hostnames:
+      - ((route))
+
+variables:
+- name: admin_user_password
+  type: password
+
+- name: admin_client_secret
+  type: password
+
+- name: uaa_jwt_signing_key
+  type: rsa
+
+- name: uaa_encryption_key_1
+  type: password
+
+- name: default_ca
+  type: certificate
+  options:
+    is_ca: true
+    common_name: ca
+
+- name: uaa_service_provider_ssl
+  type: certificate
+  options:
+    ca: default_ca
+    common_name: ((route))
+    alternative_names: [((route))]

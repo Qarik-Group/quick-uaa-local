@@ -1,0 +1,17 @@
+- type: replace
+  path: /spring_profiles
+  value: mysql,ldap
+
+- type: replace
+  path: /ldap?
+  value:
+    override: true
+    profile:
+      file: ldap/ldap-simple-bind.xml
+    base:
+      url: ldaps://ldap.jumpcloud.com:636
+      userDnPattern: 'cn={0},ou=Users,o=5b56bc5d7d85aa438b93695f,dc=jumpcloud,dc=com'
+      userDnPatternDelimiter: ;
+      mailAttributeName: ~
+    ssl:
+      skipverification: true

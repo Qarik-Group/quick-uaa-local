@@ -1,0 +1,9 @@
+# TODO: blocked on https://github.com/cloudfoundry/uaa/pull/839
+- type: replace
+  path: /login/oauth/providers/google/emailDomain?
+  value:
+  - ((google_restrict_domain))
+
+- type: replace
+  path: /login/oauth/providers/google/enforceDomains?
+  value: true
