@@ -18,14 +18,12 @@ tmp=$(mktemp -d)
 trap "rm -fr ${tmp}" EXIT
 trap "[[ -s $vars_file ]] || { rm -f $vars_file; }" EXIT
 var_cache="${tmp}/vars_cache.yml"
-int_cache="${tmp}/int_cache.yml"
 
-cf_manifest_yml_base="${repo_root}/src/manifest.yml"
-uaa_yml_base="${repo_root}/src/uaa.yml"
+uaa_yml_base="${repo_root}/manifests/uaa.yml"
 
 PATH=${repo_root}/bin:${PATH}
 
-version=$(grep uaa-deployment ${repo_root}/.versions | cut -d= -f2)
+version=$(grep quaa ${repo_root}/.versions | cut -d= -f2)
 
 pushd () {
     command pushd "$@" > /dev/null
@@ -56,12 +54,25 @@ faketty() {
 
 validate_vars_file() {
     if [ ! -e $vars_file ]; then
-      eval "echo \"$(<src/vars.tmpl)\"" > $vars_file
+      eval "echo \"$(<manifests/vars.tmpl)\"" > $vars_file
     fi
 }
 
-vars_file() {
+local_db_vars_file() {
+    if [[ ! -f ${cache}/local_db_vars_file.yml ]]; then
+        cat > ${cache}/local_db_vars_file.yml <<-YAML
+db_scheme: postgresql
+db_username: $(whoami)
+db_password: ""
+db_host: localhost
+db_port: 5432
+db_name: quick-uaa-local
+YAML
+    fi
+    echo "${cache}/local_db_vars_file.yml"
+}
 
+vars_file() {
     local state_vars=${state}/vars.yml
     bosh int $vars_file > $state_vars
     echo $state_vars
@@ -98,7 +109,7 @@ usage() {
 }
 
 up_usage() {
-    echo "  --route login.mycompany.com | Seed the route to be used for UAA"
+    echo "  --port 8080 | Local port to bind UAA"
     echo
 }
 
@@ -109,20 +120,11 @@ down_usage() {
 }
 
 up() {
-    (>&2 echo "Check target Cloud Foundry...")
-    _check_cf_target
+    (>&2 echo "Discover local DB...")
+    local_db_vars_file > /dev/null
 
     (>&2 echo)
-    (>&2 echo "Check DB service instance...")
-    cf_db_service_instance_url > /dev/null
-    cf_db_service_vars_file > /dev/null
-
-    (>&2 echo)
-    (>&2 echo "Check construction of Cloud Foundry deployment manifest...")
-    cf_int --var war_path=$(war_path) --var-errs > /dev/null
-
-    (>&2 echo)
-    (>&2 echo "Check construction of UAA YAML configuration...")
+    (>&2 echo "Check construction of UAA configuration...")
     uaa_int --var-errs > /dev/null
 
     (>&2 echo)
@@ -130,22 +132,6 @@ up() {
     build_custom_war
 
     (>&2 echo)
-    (>&2 echo "Creating application...")
-    cf delete "$(appname)-new" -f
-    cf push "$(appname)-new" -f <(cf_int) \
-        --var war_path=$(war_path) \
-        --no-start
-
-    (>&2 echo)
-    (>&2 echo "Setting uaa.yml configuration...")
-    cf set-env "$(appname)-new" UAA_CONFIG_YAML "$(uaa_int)"
-
-    (>&2 echo)
-    (>&2 echo "Starting application...")
-    cf delete "$(appname)" -f # due to DB connection limits
-    cf restart "$(appname)-new"
-
-    cf rename "$(appname)-new" "$(appname)"
 }
 
 down() {
@@ -153,11 +139,7 @@ down() {
       echo "please deploy the UAA first with 'u up'"
       exit 1
     fi
-    _check_cf_target
-    cf delete "$(appname)" "$@"
-    cf delete-service-key "$(dbname)" "$(dbname)" "$@"
-    cf delete-service "$(dbname)" "$@"
-    clear_cache
+    echo "TODO"; exit 1
 }
 
 clean() {
@@ -192,9 +174,8 @@ env() {
         exit 0
     fi
     echo "export UAA_URL=$(public_url)"
-    # TODO: Initally assuming that the CF/domain has public CA
-    # echo "export UAA_CA_CERT='$(cat $(ca_cert))'"
-    # echo "export UAA_CA_CERT_FILE='$(ca_cert)'"
+    echo "export UAA_CA_CERT='$(cat $(ca_cert))'"
+    echo "export UAA_CA_CERT_FILE='$(ca_cert)'"
 }
 
 info() {
@@ -207,24 +188,25 @@ info() {
 }
 
 _ssh() {
-    cf ssh $(appname)
+    echo "TODO"; exit 1
 }
 
 _logs() {
-    cf logs $(appname) "$@"
+    echo "TODO"; exit 1
 }
 
 _uaa_auth_client() {
-    faketty uaa target https://$(get_var route) "$@"
+    faketty uaa target $(public_url) "$@"
     faketty uaa get-client-credentials-token uaa_admin --client_secret $(store_uaa_int --path /admin_client_secret) "$@"
 }
 
 war_path() {
     local version=$(grep "^uaa-server=" ${repo_root}/.versions | cut -d= -f2)
     custom_build_name=custom
-    [[ -f ${project_root}/vars.yml ]] && {
-        custom_build_name=$(bosh int ${project_root}/vars.yml --path /route | sed -e "s%\.%-%g");
-    }
+    # [[ -f ${project_root}/vars.yml ]] && {
+    #     custom_build_name=$(bosh int ${project_root}/vars.yml --path /buildname | sed -e "s%\.%-%g");
+    # }
+
     # Possibly produced by bin/customize-uaa-war
     local custom_war_path=${war_downloads}/uaa-${version}-${custom_build_name}.war
     [[ -f ${custom_war_path} ]] && { echo ${custom_war_path}; exit 0; }
@@ -248,71 +230,17 @@ build_custom_war() {
     set -e
 }
 
-cf_current_space_guid() {
-    bosh int ~/.cf/config.json --path /SpaceFields/GUID
-}
-
 clear_cache() {
     rm -rf ${cache}
-}
-
-cf_db_service_instance_url() {
-  if [[ ! -f ${cache}/service_instance_url ]]; then
-    service_instance=$(cf curl "/v2/spaces/$(cf_current_space_guid)/service_instances?q=name:$(dbname)")
-    if [[ "$(bosh int <(echo "${service_instance}") --path /total_results)" == "0" ]]; then
-      (>&2 echo "Please create PostgreSQL/MySQL service instance named $(dbname)")
-      exit 1
-    fi
-    bosh int <(echo "${service_instance}") --path /resources/0/metadata/url > ${cache}/service_instance_url
-  fi
-  cat ${cache}/service_instance_url
-}
-
-cf_db_service_key_uri() {
-  service_keys=$(cf curl $(cf_db_service_instance_url)/service_keys)
-  if [[ "$(bosh int <(echo "${service_keys}") --path /total_results)" == "0" ]]; then
-    (>&2 echo "Creating service key for service instance $(dbname)")
-    cf create-service-key $(dbname) $(dbname) >&2
-    service_keys=$(cf curl $(cf_db_service_instance_url)/service_keys)
-  fi
-
-  bosh int <(echo "${service_keys}") --path /resources/0/entity/credentials/uri
-}
-
-cf_db_service_vars_file() {
-    if [[ ! -f ${cache}/cf_db_service_vars.yml ]]; then
-        uri=$(cf_db_service_key_uri)
-        pattern='^(([a-z]+)://)?((([^:\/]+)(:([^@\/]*))?@)?([^:\/?]+)(:([0-9]+))?)\/?([^?]*)?(\?[^#]*)?(#.*)?$'
-        [[ "$uri" =~ $pattern ]] || {
-            (>&2 echo "Could not parse database URI: '$uri}'")
-            exit 1
-        }
-        scheme=${BASH_REMATCH[2]}
-        [[ "${scheme}" == "postgres" ]] && { scheme="postgresql"; }
-        username=${BASH_REMATCH[5]}
-        password=${BASH_REMATCH[7]}
-        hostname=${BASH_REMATCH[8]}
-        port=${BASH_REMATCH[10]}
-        dbname=${BASH_REMATCH[11]}
-        cat > ${cache}/cf_db_service_vars.yml <<-YAML
-db_scheme: ${scheme}
-db_username: ${username}
-db_password: ${password}
-db_host: ${hostname}
-db_port: ${port}
-db_name: ${dbname}
-YAML
-    fi
-    echo "${cache}/cf_db_service_vars.yml"
 }
 
 uaa_int_args() {
     local ops_files=()
 
-    vars_file_arg="-l $(vars_file) -l $(cf_db_service_vars_file)"
+    vars_file_arg="-l $(vars_file) -l $(local_db_vars_file)"
 
     # Database selection from service instance
-    ops_files+=(${repo_root}/src/db/1-$(cat $(cf_db_service_vars_file) | bosh int - --path /db_scheme).yml)
+    ops_files+=(${repo_root}/manifests/ops-files/db/1-$(cat $(local_db_vars_file) | bosh int - --path /db_scheme).yml)
 
     if [[ -d ${project_root}/operators/uaa ]]; then
         ops_files+=(${project_root}/operators/uaa/*.yml)
@@ -323,56 +251,12 @@ uaa_int_args() {
 }
 
 uaa_int() {
-    cf_db_service_instance_url > /dev/null
+    local_db_vars_file > /dev/null
     bosh int $(uaa_int_args) "$@"
 }
 
 store_uaa_int() {
     bosh int $vars_store "$@"
-}
-
-cf_int_args() {
-    local ops_files=()
-
-    vars_file_arg="-l $(vars_file)"
-
-    ops_file_args=
-    if [[ -d ${project_root}/operators/cf ]]; then
-        ops_files+=(${project_root}/operators/cf/*.yml)
-        ops_file_args=$(printf '%s\n' "${ops_files[@]}" | sed 's|\(.*\)/|\1@|' | sort -t@ -k2 | sed 's|@|/|' | sed 's/^/-o /' | xargs)
-    fi
-    echo "${cf_manifest_yml_base} ${ops_file_args} ${vars_store_arg} ${vars_file_arg}"
-}
-
-cf_int() {
-    bosh int $(cf_int_args) "$@"
-}
-_check_cf_target() {
-    cf target
-}
-
-_ensure_cf_cli_installed() {
-    local version=$(grep "^cf=" ${repo_root}/.versions | cut -d= -f2)
-    local cli_path=${repo_root}/bin/cf
-
-    if ! ( [ -f ${cli_path} ] && ${cli_path} --version | head -n 1 | grep ${version} > /dev/null); then
-      (>&2 echo "installing cf cli '${version}' into: ${repo_root}/bin/")
-      pushd $(mktemp -d)
-      if [ "$(platform)" == "darwin" ]; then
-          local url="https://packages.cloudfoundry.org/stable?release=macosx64-binary&version=${version}&source=github-rel"
-          curl -s -L >cf.tgz "${url}-${version}-darwin-amd64"
-          tar xfz cf.tgz
-          chmod +x cf
-          mv cf ${repo_root}/bin/
-      else
-          local url="https://packages.cloudfoundry.org/stable?release=linux64-binary&version=${version}&source=github-rel"
-          curl -s -L >cf.tgz "${url}-${version}-linux-amd64"
-          tar xfz cf.tgz
-          chmod +x cf
-          mv cf ${repo_root}/bin/
-      fi
-      popd
-    fi
 }
 
 _ensure_bosh_cli_installed() {
@@ -412,7 +296,6 @@ _ensure_uaa_cli_installed() {
     fi
 }
 
-_ensure_cf_cli_installed
 _ensure_bosh_cli_installed
 _ensure_uaa_cli_installed
 case "${1:-usage}" in
@@ -424,9 +307,9 @@ case "${1:-usage}" in
                     up_usage
                     exit 0
                     ;;
-                --route)
+                --port)
                     shift
-                    route=$1 # used in src/vars.tmpl
+                    port=$1 # used in src/vars.tmpl
                     ;;
             esac
             shift
@@ -487,20 +370,9 @@ case "${1:-usage}" in
         _logs "$@"
         ;;
 
-    # int - deprecated
     int)
         shift
         uaa_int "$@"
-        ;;
-
-    uaayml)
-        shift
-        uaa_int "$@"
-        ;;
-
-    cfyml)
-        shift
-        cf_int "$@"
         ;;
 
     *)
