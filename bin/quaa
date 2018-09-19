@@ -55,18 +55,61 @@ faketty() {
 validate_vars_file() {
     if [ ! -e $vars_file ]; then
       eval "echo \"$(<manifests/vars.tmpl)\"" > $vars_file
+      cat >> $vars_file <<-YAML
+db_uri: $(db_uri)
+YAML
     fi
+}
+
+check_local_postgresql() {
+    set +e
+    (>&2 echo "Checking local DB $(db_uri)...")
+    testoutput=$(psql -c "\dd;" $(db_uri) 2>&1)
+    if [[ "X$(echo ${testoutput} | grep 'Is the server running')" != "X" ]]; then
+        (>&2 echo "ERROR: cannot connect to PostgreSQL: $(db_uri)")
+        exit 1
+    fi
+    if [[ "X$(echo ${testoutput} | grep 'does not exist')" != "X" ]]; then
+        (>&2 echo "Creating PostgreSQL database: $(db_uri)")
+        createdb -h $(db_host) -p $(db_port) -U $(db_username) $(db_name)
+    fi
+    set -e
+}
+
+db_username() {
+    echo "${db_username:-$(whoami)}"
+}
+
+db_host() {
+    echo "${db_host:-localhost}"
+}
+
+db_port() {
+    echo "${db_port:-5432}"
+}
+
+db_name() {
+    echo "${db_name:-quick-uaa-local}"
+}
+
+db_uri_no_dbname() {
+    echo "postgresql://$(db_username):@$(db_host):$(db_port)"
+}
+
+db_uri() {
+    echo "$(db_uri_no_dbname)/$(db_name)"
 }
 
 local_db_vars_file() {
     if [[ ! -f ${cache}/local_db_vars_file.yml ]]; then
+        check_local_postgresql
         cat > ${cache}/local_db_vars_file.yml <<-YAML
 db_scheme: postgresql
-db_username: $(whoami)
+db_username: $(db_username)
 db_password: ""
-db_host: localhost
-db_port: 5432
-db_name: quick-uaa-local
+db_host: $(db_host)
+db_port: $(db_port)
+db_name: $(db_name)
 YAML
     fi
     echo "${cache}/local_db_vars_file.yml"
@@ -309,7 +352,22 @@ case "${1:-usage}" in
                     ;;
                 --port)
                     shift
-                    port=$1 # used in src/vars.tmpl
+                    uaa_port=$1
+                    ;;
+                --postgresql)
+                    db_scheme=postgresql
+                    ;;
+                --db-port)
+                    shift
+                    db_port=$1
+                    ;;
+                --db-name)
+                    shift
+                    db_name=$1
+                    ;;
+                --db-username)
+                    shift
+                    db_username=$1
                     ;;
             esac
             shift
