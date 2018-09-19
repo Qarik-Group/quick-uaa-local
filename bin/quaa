@@ -145,7 +145,21 @@ down_usage() {
     echo
 }
 
+catalina_base() {
+    catalina -h | grep CATALINA_BASE | awk '{print $3}'
+}
+
+catalina_webapps() {
+    echo "$(catalina_base)/webapps"
+}
+
+catalina_conf() {
+    echo "$(catalina_base)/conf"
+}
+
 up() {
+    _ensure_tomcat_installed
+
     (>&2 echo "Discover local DB...")
     local_db_vars_file > /dev/null
 
@@ -161,6 +175,16 @@ up() {
     export UAA_URL=$(public_url)
     export LOGIN_URL=$(public_url)
     export JBP_CONFIG_SPRING_AUTO_RECONFIGURATION='{enabled: true}'
+    # catalina -h | grep CATALINA_BASE | awk '{print $3}'
+
+
+    # mv /usr/local/opt/tomcat/libexec/webapps{,.bak}
+    # cp ~/.uaa/server/downloads/uaa-4.20.0.war /usr/local/opt/tomcat/libexec/webapps/ROOT.war
+    # cp ~/Projects/uaa/quick-uaa-local/manifests/tomcat/homebrew.tomcat.server.xml /usr/local/opt/tomcat/libexec/conf/server.xml
+
+    # export CLOUD_FOUNDRY_CONFIG_PATH=$PWD/state/cache/uaa.yml
+    # export CATALINA_OPTS="-Djava.security.policy=unlimited -Xmx768m -XX:MaxMetaspaceSize=256m"
+    # catalina run && tail -n 200 -f /usr/local/opt/tomcat/libexec/logs/uaa.log
 }
 
 down() {
@@ -282,6 +306,13 @@ uaa_int() {
 
 store_uaa_int() {
     bosh int $vars_store "$@"
+}
+
+_ensure_tomcat_installed() {
+    which catalina || {
+        (>&2 echo "ERROR: Please install Tomcat; or ensure 'catalina' is in \$PATH")
+        exit 1
+    }
 }
 
 _ensure_bosh_cli_installed() {
