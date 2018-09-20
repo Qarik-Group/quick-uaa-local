@@ -9,11 +9,14 @@ cache=${state}/cache
 vars_file=${UAADEPLOY_VARS_FILE:-${project_root}/vars.yml}
 vars_store=${UAADEPLOY_VARS_STORE:-${state}/creds.yml}
 war_downloads=~/.uaa/server/downloads
+uaa_config_path=${cache}/uaa
 
 vars_store_arg="--vars-store ${vars_store}"
 
+
 mkdir -p ${state}
 mkdir -p ${cache}
+mkdir -p ${uaa_config_path}
 tmp=$(mktemp -d)
 trap "rm -fr ${tmp}" EXIT
 trap "[[ -s $vars_file ]] || { rm -f $vars_file; }" EXIT
@@ -66,7 +69,7 @@ YAML
 }
 
 public_url() {
-    echo "https://$(get_var route)"
+    uaa_int --path /issuer/uri
 }
 
 db_uri_no_dbname() {
@@ -124,11 +127,9 @@ usage() {
     echo "  up -- deploys the UAA to Cloud Foundry"
     echo "  down -- deletes the UAA app from Cloud Foundry"
     echo "  clean -- start with a clean enviorment - use this only after you've torn down your env"
-    echo "  ssh -- ssh into the UAA app instance"
-    echo "  logs -- streaming logs from UAA app instance; pass --recent to see recent logs"
+    echo "  logs -- tail logs from UAA"
     echo "  env -- sourceable environment variables for cli clients"
-    echo "  uaayml -- build UAA yaml configuration"
-    echo "  cfyml  -- build Cloud Foundry deployment manifest"
+    echo "  int -- build UAA yaml configuration"
     echo "  info -- UAA information"
     echo "  auth-client -- configures uaa cli as a client only"
     exit 1
@@ -149,14 +150,6 @@ catalina_base() {
     catalina -h | grep CATALINA_BASE | awk '{print $3}'
 }
 
-catalina_webapps() {
-    echo "$(catalina_base)/webapps"
-}
-
-catalina_conf() {
-    echo "$(catalina_base)/conf"
-}
-
 up() {
     _ensure_tomcat_installed
 
@@ -164,27 +157,28 @@ up() {
     local_db_vars_file > /dev/null
 
     (>&2 echo)
-    (>&2 echo "Check construction of UAA configuration...")
-    uaa_int --var-errs > /dev/null
+    (>&2 echo "Configuring UAA...")
+    uaa_int --var-errs > "${uaa_config_path}/uaa.yml"
 
     (>&2 echo)
     (>&2 echo "Check custom build of UAA...")
     build_custom_war
 
     (>&2 echo)
+    (>&2 echo "Deploying UAA to Apache Tomcat...")
     export UAA_URL=$(public_url)
     export LOGIN_URL=$(public_url)
     export JBP_CONFIG_SPRING_AUTO_RECONFIGURATION='{enabled: true}'
-    # catalina -h | grep CATALINA_BASE | awk '{print $3}'
+    export CLOUD_FOUNDRY_CONFIG_PATH=${uaa_config_path}
+    export CATALINA_OPTS="-Djava.security.policy=unlimited -Xmx768m -XX:MaxMetaspaceSize=256m"
 
+    rm -rf $(catalina_base)/logs/uaa.log
+    rm -rf $(catalina_base)/webapps
+    mkdir -p $(catalina_base)/webapps
+    cp $(war_path) $(catalina_base)/webapps/ROOT.war
+    cp manifests/tomcat/homebrew.tomcat.server.xml $(catalina_base)/conf/server.xml
 
-    # mv /usr/local/opt/tomcat/libexec/webapps{,.bak}
-    # cp ~/.uaa/server/downloads/uaa-4.20.0.war /usr/local/opt/tomcat/libexec/webapps/ROOT.war
-    # cp ~/Projects/uaa/quick-uaa-local/manifests/tomcat/homebrew.tomcat.server.xml /usr/local/opt/tomcat/libexec/conf/server.xml
-
-    # export CLOUD_FOUNDRY_CONFIG_PATH=$PWD/state/cache/uaa.yml
-    # export CATALINA_OPTS="-Djava.security.policy=unlimited -Xmx768m -XX:MaxMetaspaceSize=256m"
-    # catalina run && tail -n 200 -f /usr/local/opt/tomcat/libexec/logs/uaa.log
+    catalina run
 }
 
 down() {
@@ -217,7 +211,7 @@ get_var() {
     bosh int ${var_cache} --path "/$path"
 }
 
-env() {
+_env() {
     echo "export PATH=\"${PATH}\""
     if [[ ! -f ${vars_store} ]]; then
         exit 0
@@ -236,12 +230,8 @@ info() {
     echo "  password: $(store_uaa_int --path /admin_user_password)"
 }
 
-_ssh() {
-    echo "TODO"; exit 1
-}
-
 _logs() {
-    echo "TODO"; exit 1
+     tail -n 200 -f $(catalina_base)/logs/uaa.log
 }
 
 _uaa_auth_client() {
@@ -291,8 +281,8 @@ uaa_int_args() {
     # Database selection from service instance
     ops_files+=(${repo_root}/manifests/ops-files/db/1-$(cat $(local_db_vars_file) | bosh int - --path /db_scheme).yml)
 
-    if [[ -d ${project_root}/operators/uaa ]]; then
-        ops_files+=(${project_root}/operators/uaa/*.yml)
+    if [[ -d ${project_root}/operators ]]; then
+        ops_files+=(${project_root}/operators/*.yml)
     fi
 
     ops_file_args=$(printf '%s\n' "${ops_files[@]}" | sed 's|\(.*\)/|\1@|' | sort -t@ -k2 | sed 's|@|/|' | sed 's/^/-o /' | xargs)
@@ -414,7 +404,7 @@ case "${1:-usage}" in
 
     env)
         shift
-        env "$@"
+        _env "$@"
         ;;
 
     vars)
@@ -429,11 +419,6 @@ case "${1:-usage}" in
 
     auth-client)
         _uaa_auth_client "$@"
-        ;;
-
-    ssh)
-        shift
-        _ssh "$@"
         ;;
 
     logs)
