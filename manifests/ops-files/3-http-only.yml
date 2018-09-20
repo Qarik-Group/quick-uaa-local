@@ -1,0 +1,8 @@
+---
+- type: replace
+  path: /require_https
+  value: false
+
+- type: replace
+  path: /issuer/uri
+  value: http://localhost:8080

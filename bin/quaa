@@ -177,13 +177,13 @@ up() {
     rm -rf $(catalina_base)/webapps
     mkdir -p $(catalina_base)/webapps
     cp $(war_path) $(catalina_base)/webapps/ROOT.war
-    cp manifests/tomcat/homebrew.tomcat.server.xml $(catalina_base)/conf/server.xml
+    cp manifests/tomcat/server.http-only.xml $(catalina_base)/conf/server.xml
 
     cat > ${uaa_config_path}/uaa.crt <<-CERT
 
 CERT
 
-    ${catalina_bin} run
+    [[ "${NO_START:-X}" == "X" ]] && { ${catalina_bin} run; } || { echo "No start."; }
 }
 
 down() {
