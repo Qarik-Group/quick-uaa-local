@@ -315,8 +315,9 @@ _ensure_bosh_cli_installed() {
     local version=$(grep "^bosh=" ${repo_root}/.versions | cut -d= -f2)
     local cli_path=${repo_root}/bin/bosh
 
-    if ! ( [ -f ${cli_path} ] && ${cli_path} --version | head -n 1 | grep ${version} > /dev/null); then
+    [[ "${OPTIONAL_CLI_INSTALL:-X}" != "X" && "$(which bosh)X" != "X" ]] && { exit 0; }
 
+    if ! ( [ -f ${cli_path} ] && ${cli_path} --version | head -n 1 | grep ${version} > /dev/null); then
       (>&2 echo "installing bosh cli '${version}' into: ${repo_root}/bin/")
       pushd $(mktemp -d)
       if [ "$(platform)" == "darwin" ]; then
@@ -336,6 +337,8 @@ _ensure_uaa_cli_installed() {
     local url="https://github.com/starkandwayne/uaa-cli-releases/releases/download"
     local version=$(grep "^uaa-cli=" ${repo_root}/.versions | cut -d= -f2)
     local cli_path=${repo_root}/bin/uaa
+
+    [[ "${OPTIONAL_CLI_INSTALL:-X}" != "X" && "$(which uaa)X" != "X" ]] && { exit 0; }
 
     if ! ( [ -f ${cli_path} ] && ${cli_path} version | head -n 1 | grep ${version} > /dev/null); then
       (>&2 echo "installing uaa cli '${version}' into: ${repo_root}/bin/")
