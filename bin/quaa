@@ -10,6 +10,7 @@ vars_file=${UAADEPLOY_VARS_FILE:-${project_root}/vars.yml}
 vars_store=${UAADEPLOY_VARS_STORE:-${state}/creds.yml}
 war_downloads=~/.uaa/server/downloads
 uaa_config_path=${cache}/uaa
+catalina_bin=${CATALINA_BIN:-catalina}
 
 vars_store_arg="--vars-store ${vars_store}"
 
@@ -147,7 +148,7 @@ down_usage() {
 }
 
 catalina_base() {
-    catalina -h | grep CATALINA_BASE | awk '{print $3}'
+    ${catalina_bin} -h | grep CATALINA_BASE | awk '{print $3}'
 }
 
 up() {
@@ -178,7 +179,11 @@ up() {
     cp $(war_path) $(catalina_base)/webapps/ROOT.war
     cp manifests/tomcat/homebrew.tomcat.server.xml $(catalina_base)/conf/server.xml
 
-    catalina run
+    cat > ${uaa_config_path}/uaa.crt <<-CERT
+
+CERT
+
+    ${catalina_bin} run
 }
 
 down() {
@@ -299,8 +304,8 @@ store_uaa_int() {
 }
 
 _ensure_tomcat_installed() {
-    which catalina || {
-        (>&2 echo "ERROR: Please install Tomcat; or ensure 'catalina' is in \$PATH")
+    which ${catalina_bin} || {
+        (>&2 echo "ERROR: Please install Tomcat; or ensure '${catalina_bin}' is in \$PATH")
         exit 1
     }
 }
