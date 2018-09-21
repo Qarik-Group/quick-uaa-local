@@ -107,7 +107,14 @@ uaa add-member uaa.admin drnic
 
 ## Upgrade UAA
 
-To upgrade, pull the lastest commits from the `master` branch and run `quaa up` again.
+If you used `brew install` installation, then continue to use `brew` CLI to upgrade:
+
+```plain
+brew upgrade quaa
+quaa up
+```
+
+If you used `git clone` installation, then pull the lastest commits from the `master` branch and run `quaa up` again.
 
 ```plain
 cd ~/workspace/quick-uaa-local
@@ -115,9 +122,9 @@ git pull
 quaa up
 ```
 
-Use Ctrl-C to terminate the running UAA/Tomcat process.
-
 ## Run inside Docker
+
+To test this project within different OS/different assumptions you can use Docker:
 
 ```plain
 docker run -ti -v $PWD:/quick-uaa-local -p 8080:8080 ${image:-openjdk:8-jre} /quick-uaa-local/bin/quaa up --clean --memory
