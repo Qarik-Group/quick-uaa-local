@@ -91,7 +91,6 @@ db_uri() {
 }
 
 check_local_db() {
-    echo "check_local_db - $(get_var db_scheme)"
     if [[ "$(get_var db_scheme)" == "postgresql" ]]; then
         set +e
         testoutput=$(psql -c "\dd;" $(db_uri) 2>&1)
