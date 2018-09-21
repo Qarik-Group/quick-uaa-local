@@ -63,7 +63,7 @@ validate_vars_file() {
     if [ ! -e $vars_file ]; then
       cat >> $vars_file <<-YAML
 route: "localhost:${uaa_port:-8080}"
-db_scheme: postgresql
+db_scheme: ${db_scheme}
 db_username: "${db_username:-$(whoami)}"
 db_host: "${db_host:-localhost}"
 db_port: ${db_port:-5432}
@@ -77,7 +77,7 @@ public_url() {
 }
 
 db_uri_no_dbname() {
-    echo "postgresql://$(get_var db_username):@$(get_var db_host):$(get_var db_port)"
+    echo "$(get_var db_scheme)://$(get_var db_username):@$(get_var db_host):$(get_var db_port)"
 }
 
 db_uri() {
@@ -85,16 +85,18 @@ db_uri() {
 }
 
 check_local_postgresql() {
-    set +e
-    testoutput=$(psql -c "\dd;" $(db_uri) 2>&1)
-    if [[ "X$(echo ${testoutput} | grep 'Is the server running')" != "X" ]]; then
-        (>&2 echo "ERROR: cannot connect to PostgreSQL: $(db_uri)")
-        exit 1
-    fi
-    set -e
-    if [[ "X$(echo ${testoutput} | grep 'does not exist')" != "X" ]]; then
-        (>&2 echo "Creating PostgreSQL database: $(db_uri)")
-        createdb -h $(get_var db_host) -p $(get_var db_port) -U $(get_var db_username) $(get_var db_name)
+    if [[ "${db_scheme:-postgresql}" == "postgresql" ]]; then
+        set +e
+        testoutput=$(psql -c "\dd;" $(db_uri) 2>&1)
+        if [[ "X$(echo ${testoutput} | grep 'Is the server running')" != "X" ]]; then
+            (>&2 echo "ERROR: cannot connect to PostgreSQL: $(db_uri)")
+            exit 1
+        fi
+        set -e
+        if [[ "X$(echo ${testoutput} | grep 'does not exist')" != "X" ]]; then
+            (>&2 echo "Creating PostgreSQL database: $(db_uri)")
+            createdb -h $(get_var db_host) -p $(get_var db_port) -U $(get_var db_username) $(get_var db_name)
+        fi
     fi
 }
 
@@ -140,6 +142,8 @@ usage() {
 
 up_usage() {
     echo "  --port 8080               | Local HTTP port to access UAA"
+    echo "  --in-memory, --memory     | Force use no database (default if no database discovered)"
+    echo "  --postgresql              | Force use postgresql (default if postgresql discovered)"
     echo "  --db-port 5432            | Connect to database on port"
     echo "  --db-name quick-uaa-local | Connect to database name (created if missing)"
     echo "  --db-username $(whoami) | Connect to database with username (no password)"
@@ -390,6 +394,12 @@ case "${1:-usage}" in
                     ;;
                 --postgresql)
                     db_scheme=postgresql
+                    ;;
+                --in-memory)
+                    db_scheme=memory
+                    ;;
+                --memory)
+                    db_scheme=memory
                     ;;
                 --db-port)
                     shift
