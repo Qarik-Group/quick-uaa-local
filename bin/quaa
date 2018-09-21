@@ -58,14 +58,23 @@ faketty() {
 
 validate_vars_file() {
     if [ ! -e $vars_file ]; then
-      cat >> $vars_file <<-YAML
+        cat >> $vars_file <<-YAML
 route: "localhost:${uaa_port:-8080}"
-db_scheme: ${db_scheme:-postgresql}
+YAML
+        if [[ "${db_scheme}" == "postgresql" ]]; then
+            cat >> $vars_file <<-YAML
+db_scheme: postgresql
 db_username: "${db_username:-$(whoami)}"
+db_password: ""
 db_host: "${db_host:-localhost}"
 db_port: ${db_port:-5432}
 db_name: "${db_name:-quick-uaa-local}"
 YAML
+        else
+            cat >> $vars_file <<-YAML
+db_scheme: memory
+YAML
+        fi
     fi
 }
 
@@ -81,12 +90,21 @@ db_uri() {
     echo "$(db_uri_no_dbname)/$(get_var db_name)"
 }
 
-check_local_postgresql() {
-    if [[ "${db_scheme:-postgresql}" == "postgresql" ]]; then
+check_local_db() {
+    echo "check_local_db - $(get_var db_scheme)"
+    if [[ "$(get_var db_scheme)" == "postgresql" ]]; then
         set +e
         testoutput=$(psql -c "\dd;" $(db_uri) 2>&1)
         if [[ "X$(echo ${testoutput} | grep 'Is the server running')" != "X" ]]; then
-            (>&2 echo "ERROR: cannot connect to PostgreSQL: $(db_uri)")
+            >&2 cat <<-EOS
+ERROR: cannot connect to PostgreSQL: $(db_uri)
+
+Either
+a) Run PostgreSQL on port 5432
+b) Configure the target PostgreSQL port: 'quaa up --clean --db-port 5440'
+c) Use in-memory database: 'quaa up --clean --memory'
+
+EOS
             exit 1
         fi
         set -e
@@ -95,21 +113,6 @@ check_local_postgresql() {
             createdb -h $(get_var db_host) -p $(get_var db_port) -U $(get_var db_username) $(get_var db_name)
         fi
     fi
-}
-
-local_db_vars_file() {
-    if [[ ! -f ${cache}/local_db_vars_file.yml ]]; then
-        check_local_postgresql
-        cat > ${cache}/local_db_vars_file.yml <<-YAML
-db_scheme: $(get_var db_scheme)
-db_username: $(get_var db_username)
-db_password: ""
-db_host: $(get_var db_host)
-db_port: $(get_var db_port)
-db_name: $(get_var db_name)
-YAML
-    fi
-    echo "${cache}/local_db_vars_file.yml"
 }
 
 vars_file() {
@@ -152,6 +155,7 @@ catalina_base() {
 }
 
 up() {
+    (>&2 echo "Upping...")
     _ensure_java8_installed
     _ensure_tomcat_installed
 
@@ -160,7 +164,7 @@ up() {
     mkdir -p ${uaa_config_path}
 
     (>&2 echo "Discover local DB...")
-    local_db_vars_file > /dev/null
+    check_local_db > /dev/null
 
     (>&2 echo)
     (>&2 echo "Configuring UAA...")
@@ -195,15 +199,19 @@ CERT
 }
 
 clean() {
+    (>&2 echo "Cleaning...")
     if [[ -f ${vars_file} ]]; then
         if curl -m 3 -H 'Accept: application/json' -k -s "$(public_url)/login" | grep version &>/dev/null ; then
             echo "Your UAA enviroment is still running"
             exit 1
         fi
         mv ${vars_file} ${vars_file}.bck
+        rm -rf ${state}
+        echo "'state' dir has been cleaned and 'vars.yml' has been moved to 'vars.yml.bck'"
+    else
+        rm -rf ${state}
+        echo "'state' dir has been cleaned"
     fi
-    rm -rf ${state}
-    echo "'state' dir has been cleaned and 'vars.yml' has been moved to 'vars.yml.bck'"
 }
 
 vars() {
@@ -284,10 +292,10 @@ clear_cache() {
 uaa_int_args() {
     local ops_files=()
 
-    vars_file_arg="-l $(vars_file) -l $(local_db_vars_file)"
+    vars_file_arg="-l $(vars_file)"
 
     # Database selection from service instance
-    ops_files+=(${repo_root}/manifests/ops-files/db/1-$(cat $(local_db_vars_file) | ${bosh_bin} int - --path /db_scheme).yml)
+    ops_files+=(${repo_root}/manifests/ops-files/db/1-$(get_var db_scheme).yml)
 
     if [[ -d ${project_root}/operators ]]; then
         ops_files+=(${project_root}/operators/*.yml)
@@ -298,7 +306,6 @@ uaa_int_args() {
 }
 
 uaa_int() {
-    local_db_vars_file > /dev/null
     ${bosh_bin} int $(uaa_int_args) "$@"
 }
 
@@ -401,9 +408,6 @@ case "${1:-usage}" in
                 -h|--help|help)
                     up_usage
                     exit 0
-                    ;;
-                --clean)
-                    clean
                     ;;
                 --port)
                     shift
