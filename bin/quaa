@@ -91,11 +91,11 @@ check_local_postgresql() {
         (>&2 echo "ERROR: cannot connect to PostgreSQL: $(db_uri)")
         exit 1
     fi
+    set -e
     if [[ "X$(echo ${testoutput} | grep 'does not exist')" != "X" ]]; then
         (>&2 echo "Creating PostgreSQL database: $(db_uri)")
-        createdb -h $(db_host) -p $(db_port) -U $(db_username) $(db_name)
+        createdb -h $(get_var db_host) -p $(get_var db_port) -U $(get_var db_username) $(get_var db_name)
     fi
-    set -e
 }
 
 local_db_vars_file() {
@@ -139,7 +139,10 @@ usage() {
 }
 
 up_usage() {
-    echo "  --port 8080 | Local port to bind UAA"
+    echo "  --port 8080               | Local HTTP port to access UAA"
+    echo "  --db-port 5432            | Connect to database on port"
+    echo "  --db-name quick-uaa-local | Connect to database name (created if missing)"
+    echo "  --db-username $(whoami) | Connect to database with username (no password)"
     echo
 }
 
