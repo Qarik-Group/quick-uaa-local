@@ -91,10 +91,4 @@ git pull
 quaa up
 ```
 
-## Destroy UAA
-
-To tear down your Apache Tomcat/UAA:
-
-```plain
-quaa down
-```
+Use Ctrl-C to terminate the running UAA/Tomcat process.

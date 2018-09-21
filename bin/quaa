@@ -128,25 +128,18 @@ ca_cert() {
 
 usage() {
     echo "UAA Deployment CLI v${version:-(development)}"
-    echo "  up -- deploys the UAA to Cloud Foundry"
-    echo "  down -- deletes the UAA app from Cloud Foundry"
-    echo "  clean -- start with a clean enviorment - use this only after you've torn down your env"
+    echo "  up -- runs the UAA within a dedicated Apache Tomcat"
+    echo "  info -- UAA information"
+    echo "  auth-client -- configures uaa cli as a client only"
+    echo "  clean -- start with a clean enviorment"
     echo "  logs -- tail logs from UAA"
     echo "  env -- sourceable environment variables for cli clients"
     echo "  int -- build UAA yaml configuration"
-    echo "  info -- UAA information"
-    echo "  auth-client -- configures uaa cli as a client only"
     exit 1
 }
 
 up_usage() {
     echo "  --port 8080 | Local port to bind UAA"
-    echo
-}
-
-down_usage() {
-    echo "  -f |          Force deletion without confirmation"
-    echo "  -c | --clean  Cleans up your enviroment by removing state files"
     echo
 }
 
@@ -192,17 +185,9 @@ CERT
     [[ "${NO_START:-X}" == "X" ]] && { ${catalina_bin} run; } || { echo "No start."; }
 }
 
-down() {
-    if [ ! -e $vars_file ]; then
-      echo "please deploy the UAA first with 'u up'"
-      exit 1
-    fi
-    echo "TODO"; exit 1
-}
-
 clean() {
   if curl -m 3 -H 'Accept: application/json' -k -s "$(public_url)/login" | grep version &>/dev/null ; then
-    echo "Your UAA enviroment is still running, please tear it down with 'u down --clean'"
+    echo "Your UAA enviroment is still running"
     exit 1
   fi
   rm -rf ${state}
@@ -409,23 +394,6 @@ case "${1:-usage}" in
         validate_vars_file
 
         up
-        ;;
-
-    down)
-        shift
-        case "${1:-}" in
-            -h|--help|help)
-                down_usage
-                exit 0
-                ;;
-            -c|--clean|clean)
-                shift
-                down "$@"
-                clean
-                exit 0
-                ;;
-        esac
-        down "$@"
         ;;
 
     clean)
