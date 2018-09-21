@@ -6,30 +6,40 @@ A pre-built Apache Tomcat and UAA war file are downloaded and installed. Your ow
 
 The name of the helper application is `quaa`.
 
-## Deploy UAA to Cloud Foundry
+## Run UAA locally
 
-To quickly bootstrap a secure, production-grade UAA to any Cloud Foundry:
+There are two paths to quickly bootstrap a dev/test UAA on your local machine:
 
-First, clone this repo.
+1. `brew install` on MacOS
+    ```plain
+    brew install starkandwayne/cf/quaa
+    ```
+1. `git clone` of this repo:
 
-```plain
-git clone https://github.com/starkandwayne/quick-uaa-local ~/workspace/quick-uaa-local
-cd ~/workspace/quick-uaa-local
-```
+    First, clone this repo.
 
-If you have `direnv` installed, you will be asked to `direnv allow` and then you will see the dependent CLIs (`uaa`, and `bosh`) downloaded into the `bin/` folder.
+    ```plain
+    git clone https://github.com/starkandwayne/quick-uaa-local ~/workspace/quick-uaa-local
+    cd ~/workspace/quick-uaa-local
+    ```
 
-If you do not see this, instead manually source the `quaa env` output to preinstall the dependent CLIs into your local path:
+    If you have `direnv` installed, you will be asked to `direnv allow` and then you will see the dependent CLIs (`uaa`, and `bosh`) downloaded into the `bin/` folder.
 
-```plain
-eval "$(bin/quaa env)"
-```
+    If you do not see this, instead manually source the `quaa env` output to preinstall the dependent CLIs into your local path:
 
-To download Apache Tomcat, generate secrets, encyption keys, certificates for your UAA, and run it locally on Java 1.8/Tomcat:
+    ```plain
+    eval "$(bin/quaa env)"
+    ```
+
+Using either method above you will now have `quaa` in your `$PATH`.
+
+To run the UAA:
 
 ```plain
 quaa up
 ```
+
+This will automatically download Apache Tomcat, the `bosh` CLI used for generating secrets, encyption keys, and certificates for your UAA, and then run it locally on Java 1.8/Tomcat.
 
 This is a long-running process in your terminal. Ctrl-C or similar to exit.
 
@@ -38,10 +48,10 @@ Once deployed, visit the UAA home page for users to login http://localhost:8080.
 You can see the generated `uaa_admin` client secret, and complimentary `admin` user:
 
 ```plain
-$ quaa info
+quaa info
 ```
 
-To target and authorize the [`uaa` CLI](https://github.com/cloudfoundry-incubator/uaa-cli):
+To target and authorize the [`uaa` CLI](https://github.com/cloudfoundry-incubator/uaa-cli) (which was automatically downloaded by either of the installation steps above):
 
 ```plain
 quaa auth-client
@@ -51,15 +61,10 @@ uaa users
 uaa groups
 ```
 
-To use the `quaa` and `uaa` CLIs anywhere, eval the `quaa env` output:
+If you used the `git clone` installation process, you can make the `quaa` and `uaa` CLIs available anywhere by eval-ing the `quaa env` output:
 
 ```plain
 eval "$(~/workspace/quick-uaa-local/bin/quaa env)"
-quaa auth-client
-
-uaa clients
-uaa users
-uaa groups
 ```
 
 ## PostgreSQL
