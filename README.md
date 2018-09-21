@@ -2,7 +2,7 @@
 
 This project is dedicated to making it easy to bring up a quick Cloud Foundry UAA on your local machine.
 
-A pre-built Apache Tomcat and UAA war file are downloaded and installed. Your own requirements are Java 1.8+, and bash. You can also optionally use a local PostgreSQL (such as [Postgres.app](https://postgresapp.com/) for MacOS).
+A pre-built Apache Tomcat and UAA war file are downloaded and installed. Your own requirements are Java 8/Java 1.8, and bash. You can also optionally use a local PostgreSQL (such as [Postgres.app](https://postgresapp.com/) for MacOS).
 
 The name of the helper application is `quaa`.
 
