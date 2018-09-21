@@ -354,9 +354,15 @@ _ensure_tomcat_installed() {
 
     [[ "${OPTIONAL_CLI_INSTALL:-X}" != "X" && "$(which catalina)X" != "X" ]] && { exit 0; }
     if ! ( [ -f ${cli_path} ] && ${cli_path} version | grep "Server number: *${version}" > /dev/null); then
-      (>&2 echo "installing Apache Tomcat '${version}' into: ${repo_root}/libexec/")
+      (>&2 echo "Installing Apache Tomcat '${version}' into: ${repo_root}/libexec/")
       pushd $(mktemp -d)
-      curl -sLO $url
+      if [[ "${TOMCAT_TGZ_PATH:-X}" == "X" ]]; then
+        (>&2 echo "installing from ${url}...")
+        curl -sLO ${url}
+      else
+        (>&2 echo "installing from ${TOMCAT_TGZ_PATH}...")
+        cp ${TOMCAT_TGZ_PATH} apache-tomcat-${version}.tar.gz
+      fi
       tar xfz apache-tomcat-${version}.tar.gz
 
       rm -rf ${repo_root}/libexec
