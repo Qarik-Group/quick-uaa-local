@@ -235,8 +235,8 @@ _logs() {
 
 _uaa_auth_client() {
     _ensure_uaa_cli_installed
-    faketty ${UAA_BIN} target $(public_url) "$@"
-    faketty ${UAA_BIN} get-client-credentials-token uaa_admin --client_secret $(store_uaa_int --path /admin_client_secret) "$@"
+    faketty ${uaa_bin} target $(public_url) "$@"
+    faketty ${uaa_bin} get-client-credentials-token uaa_admin --client_secret $(store_uaa_int --path /admin_client_secret) "$@"
 }
 
 war_path() {
@@ -327,7 +327,7 @@ _ensure_uaa_cli_installed() {
 
     [[ "${OPTIONAL_CLI_INSTALL:-X}" != "X" && "$(which uaa)X" != "X" ]] && { exit 0; }
 
-    if ! ( [ -f ${UAA_BIN} ] && ${UAA_BIN} version | head -n 1 | grep ${version} > /dev/null); then
+    if ! ( [ -f ${uaa_bin} ] && ${uaa_bin} version | head -n 1 | grep ${version} > /dev/null); then
       (>&2 echo "installing uaa cli '${version}' into: ${repo_root}/bin/")
       pushd $(mktemp -d)
       curl -s -L >uaa "${url}/v${version}/uaa-$(platform)-amd64"
