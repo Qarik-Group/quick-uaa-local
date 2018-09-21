@@ -159,6 +159,9 @@ up() {
 
     (>&2 echo)
     (>&2 echo "Configuring UAA...")
+    mkdir -p ${project_root}/operators
+    cp ${repo_root}/manifests/ops-files/3-http-only.yml ${project_root}/operators/3-http-only.yml
+
     uaa_int --var-errs > "${uaa_config_path}/uaa.yml"
 
     (>&2 echo)
