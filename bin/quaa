@@ -18,9 +18,6 @@ catalina_bin=${CATALINA_BIN:-${repo_root}/libexec/bin/catalina.sh}
 vars_store_arg="--vars-store ${vars_store}"
 
 
-mkdir -p ${state}
-mkdir -p ${cache}
-mkdir -p ${uaa_config_path}
 tmp=$(mktemp -d)
 trap "rm -fr ${tmp}" EXIT
 trap "[[ -s $vars_file ]] || { rm -f $vars_file; }" EXIT
@@ -157,6 +154,10 @@ catalina_base() {
 up() {
     _ensure_java8_installed
     _ensure_tomcat_installed
+
+    mkdir -p ${state}
+    mkdir -p ${cache}
+    mkdir -p ${uaa_config_path}
 
     (>&2 echo "Discover local DB...")
     local_db_vars_file > /dev/null
@@ -403,9 +404,6 @@ case "${1:-usage}" in
                     ;;
                 --clean)
                     clean
-                    mkdir -p ${state}
-                    mkdir -p ${cache}
-                    mkdir -p ${uaa_config_path}
                     ;;
                 --port)
                     shift
