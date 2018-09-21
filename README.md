@@ -122,6 +122,10 @@ git pull
 quaa up
 ```
 
+## Homebrew Recipe
+
+The `brew install starkandwayne/cf/quaa` homebrew recipe is located at https://github.com/starkandwayne/homebrew-cf/blob/master/quaa.rb
+
 ## Run inside Docker
 
 To test this project within different OS/different assumptions you can use Docker:
