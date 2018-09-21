@@ -2,7 +2,7 @@
 
 This project is dedicated to making it easy to bring up a quick Cloud Foundry UAA on your local machine.
 
-A pre-built Apache Tomcat and UAA war file are downloaded and installed. Your own requirements are Java 1.8+, bash, and a locally running PostgreSQL (such as [Postgres.app](https://postgresapp.com/) for MacOS).
+A pre-built Apache Tomcat and UAA war file are downloaded and installed. Your own requirements are Java 1.8+, and bash. You can also optionally use a local PostgreSQL (such as [Postgres.app](https://postgresapp.com/) for MacOS).
 
 The name of the helper application is `quaa`.
 
@@ -31,7 +31,7 @@ To download Apache Tomcat, generate secrets, encyption keys, certificates for yo
 quaa up
 ```
 
-Note, the `quaa up` command can be run in future to upgrade. The flags provided above will be cached in `vars.yml` and not be required to be provided again.
+This is a long-running process in your terminal. Ctrl-C or similar to exit.
 
 Once deployed, visit the UAA home page for users to login http://localhost:8080.
 
@@ -62,6 +62,25 @@ uaa users
 uaa groups
 ```
 
+## PostgreSQL
+
+The `quaa up` command will store data in memory, which will be lost upon termination.
+
+You can use a local PostgreSQL to persist data over time.
+
+```plain
+quaa up --postgresql
+```
+
+To see various options try:
+
+```plain
+quaa up -h
+```
+
+## Upgrading
+
+The `quaa up` command can be run in future to upgrade.
 
 ## Create Users
 
