@@ -92,3 +92,9 @@ quaa up
 ```
 
 Use Ctrl-C to terminate the running UAA/Tomcat process.
+
+## Run inside Docker
+
+```plain
+docker run -ti -v $PWD:/quick-uaa-local -p 8080:8080 ${image:-openjdk:8-jre} /quick-uaa-local/bin/quaa up --clean --memory
+```
