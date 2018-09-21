@@ -155,6 +155,7 @@ catalina_base() {
 }
 
 up() {
+    _ensure_java8_installed
     _ensure_tomcat_installed
 
     (>&2 echo "Discover local DB...")
@@ -374,6 +375,19 @@ _ensure_tomcat_installed() {
       fi
       popd
     fi
+}
+
+# Tomcat seems to fail on OpenJDK 9 + 10. Restrict to 8.
+_ensure_java8_installed() {
+    [[ "$(which java)X" == "X" ]] && {
+        (>&2 echo "ERROR: Apache Tomcat 9 requires Java 8. Please install Java 8")
+        exit 1
+    }
+    [[ "$(java -version 2>&1 | grep 'java version "1.8')X" == "X" ]] && {
+        (>&2 echo "ERROR: Apache Tomcat 9 seems to require Java 8. Please switch to Java 8 :/")
+        exit 1
+    }
+    true
 }
 
 _ensure_bosh_cli_installed
