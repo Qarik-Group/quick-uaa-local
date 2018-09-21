@@ -357,7 +357,16 @@ _ensure_tomcat_installed() {
       tar xfz apache-tomcat-${version}.tar.gz
 
       rm -rf ${repo_root}/libexec
-      cp -r apache-tomcat-${version} ${repo_root}/libexec
+      if [[ -d apache-tomcat-${version} ]]; then
+        cp -r apache-tomcat-${version} ${repo_root}/libexec
+      elif [[ -d META-INF ]]; then
+        mkdir -p ${repo_root}/libexec
+        cp -r META-INF WEB-INF resources vendor ${repo_root}/libexec/
+      else
+        (>&2 echo "Does not appear to be Apache Tomcat.")
+        ls -al
+        exit 1
+      fi
       popd
     fi
 }
@@ -444,3 +453,4 @@ case "${1:-usage}" in
         exit 1
         ;;
 esac
+
