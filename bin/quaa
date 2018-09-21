@@ -61,7 +61,7 @@ validate_vars_file() {
         cat >> $vars_file <<-YAML
 route: "localhost:${uaa_port:-8080}"
 YAML
-        if [[ "${db_scheme}" == "postgresql" ]]; then
+        if [[ "${db_scheme:-}" == "postgresql" ]]; then
             cat >> $vars_file <<-YAML
 db_scheme: postgresql
 db_username: "${db_username:-$(whoami)}"
