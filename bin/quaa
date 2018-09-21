@@ -154,7 +154,6 @@ catalina_base() {
 }
 
 up() {
-    (>&2 echo "Upping...")
     _ensure_java8_installed
     _ensure_tomcat_installed
 
@@ -198,7 +197,6 @@ CERT
 }
 
 clean() {
-    (>&2 echo "Cleaning...")
     if [[ -f ${vars_file} ]]; then
         if curl -m 3 -H 'Accept: application/json' -k -s "$(public_url)/login" | grep version &>/dev/null ; then
             echo "Your UAA enviroment is still running"
