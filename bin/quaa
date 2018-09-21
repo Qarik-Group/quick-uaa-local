@@ -163,9 +163,9 @@ up() {
 
     uaa_int --var-errs > "${uaa_config_path}/uaa.yml"
 
-    (>&2 echo)
-    (>&2 echo "Check custom build of UAA...")
-    build_custom_war
+    # (>&2 echo)
+    # (>&2 echo "Check custom build of UAA...")
+    # build_custom_war
 
     (>&2 echo)
     (>&2 echo "Deploying UAA to Apache Tomcat...")
