@@ -179,7 +179,7 @@ up() {
     rm -rf $(catalina_base)/webapps
     mkdir -p $(catalina_base)/webapps
     cp $(war_path) $(catalina_base)/webapps/ROOT.war
-    cp manifests/tomcat/server.http-only.xml $(catalina_base)/conf/server.xml
+    cp ${repo_root}/manifests/tomcat/server.http-only.xml $(catalina_base)/conf/server.xml
 
     cat > ${uaa_config_path}/uaa.crt <<-CERT
 
