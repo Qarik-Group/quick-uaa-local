@@ -1,6 +1,7 @@
 operators/
 state/
 custom/
+libexec/
 site
 tmp
 .DS_Store

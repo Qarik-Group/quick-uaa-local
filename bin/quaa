@@ -10,7 +10,7 @@ vars_file=${UAADEPLOY_VARS_FILE:-${project_root}/vars.yml}
 vars_store=${UAADEPLOY_VARS_STORE:-${state}/creds.yml}
 war_downloads=~/.uaa/server/downloads
 uaa_config_path=${cache}/uaa
-catalina_bin=${CATALINA_BIN:-catalina}
+catalina_bin=${CATALINA_BIN:-${repo_root}/libexec/bin/catalina.sh}
 
 vars_store_arg="--vars-store ${vars_store}"
 
@@ -303,13 +303,6 @@ store_uaa_int() {
     bosh int $vars_store "$@"
 }
 
-_ensure_tomcat_installed() {
-    which ${catalina_bin} || {
-        (>&2 echo "ERROR: Please install Tomcat; or ensure '${catalina_bin}' is in \$PATH")
-        exit 1
-    }
-}
-
 _ensure_bosh_cli_installed() {
     local url="https://s3.amazonaws.com/bosh-cli-artifacts/bosh-cli"
     local version=$(grep "^bosh=" ${repo_root}/.versions | cut -d= -f2)
@@ -346,6 +339,25 @@ _ensure_uaa_cli_installed() {
       curl -s -L >uaa "${url}/v${version}/uaa-$(platform)-amd64"
       chmod +x uaa
       mv uaa ${repo_root}/bin/
+      popd
+    fi
+}
+
+_ensure_tomcat_installed() {
+    local version="9.0.12"
+    local sha512="f03bdfcc85a5fc0cd4f5cbb4c7d1e7b8b48014383e47d9a92c6e974adcb0cbf8ce0f3620fee2cd267b0c46f7238c3431847cb86076283ae252ab91260e8bf569"
+    local url="http://www-eu.apache.org/dist/tomcat/tomcat-9/v${version}/bin/apache-tomcat-${version}.tar.gz"
+    local cli_path=${repo_root}/libexec/bin/catalina.sh
+
+    [[ "${OPTIONAL_CLI_INSTALL:-X}" != "X" && "$(which catalina)X" != "X" ]] && { exit 0; }
+    if ! ( [ -f ${cli_path} ] && ${cli_path} version | grep "Server number: *${version}" > /dev/null); then
+      (>&2 echo "installing Apache Tomcat '${version}' into: ${repo_root}/libexec/")
+      pushd $(mktemp -d)
+      curl -sLO $url
+      tar xfz apache-tomcat-${version}.tar.gz
+
+      rm -rf ${repo_root}/libexec
+      cp -r apache-tomcat-${version} ${repo_root}/libexec
       popd
     fi
 }
