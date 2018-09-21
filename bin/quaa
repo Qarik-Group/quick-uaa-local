@@ -63,7 +63,7 @@ validate_vars_file() {
     if [ ! -e $vars_file ]; then
       cat >> $vars_file <<-YAML
 route: "localhost:${uaa_port:-8080}"
-db_scheme: ${db_scheme}
+db_scheme: ${db_scheme:-postgresql}
 db_username: "${db_username:-$(whoami)}"
 db_host: "${db_host:-localhost}"
 db_port: ${db_port:-5432}
@@ -387,6 +387,12 @@ case "${1:-usage}" in
                 -h|--help|help)
                     up_usage
                     exit 0
+                    ;;
+                --clean)
+                    clean
+                    mkdir -p ${state}
+                    mkdir -p ${cache}
+                    mkdir -p ${uaa_config_path}
                     ;;
                 --port)
                     shift
