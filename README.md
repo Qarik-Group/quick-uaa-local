@@ -13,7 +13,7 @@ To quickly bootstrap a secure, production-grade UAA to any Cloud Foundry:
 First, clone this repo.
 
 ```plain
-git https://github.com/starkandwayne/quick-uaa-local ~/workspace/quick-uaa-local
+git clone https://github.com/starkandwayne/quick-uaa-local ~/workspace/quick-uaa-local
 cd ~/workspace/quick-uaa-local
 ```
 
