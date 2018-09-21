@@ -363,6 +363,8 @@ _ensure_tomcat_installed() {
 }
 
 _ensure_bosh_cli_installed
+# IDEA: allow `uaa` subcommands to be passed thru
+# uaa -h | grep -v : | grep -v "\-\-" | grep "^  [a-z][a-z-]*  *[A-Z]" | awk '{print $1}'
 case "${1:-usage}" in
     up)
         shift
