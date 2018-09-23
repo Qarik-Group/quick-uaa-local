@@ -128,7 +128,7 @@ ca_cert() {
 }
 
 usage() {
-    echo "UAA Deployment CLI v${version:-(development)}"
+    echo "Quick UAA Local CLI v${version:-(development)}"
     echo "  up -- runs the UAA within a dedicated Apache Tomcat"
     echo "  info -- UAA information"
     echo "  auth-client -- configures uaa cli as a client only"
