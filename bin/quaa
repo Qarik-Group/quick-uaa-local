@@ -472,6 +472,11 @@ case "${1:-usage}" in
         war_path
         ;;
 
+    ssh)
+        (>&2 echo "UNUSED: the 'quaa ssh' command does nothing for quick-uaa-local")
+        exit 1
+        ;;
+
     *)
         usage
         exit 1
