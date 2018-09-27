@@ -101,7 +101,7 @@ ERROR: cannot connect to PostgreSQL: $(db_uri)
 Either
 a) Run PostgreSQL on port 5432
 b) Configure the target PostgreSQL port: 'quaa up --clean --db-port 5440'
-c) Use in-memory database: 'quaa up --clean --memory'
+c) Use in-memory database: 'quaa clean; quaa up --memory'
 
 EOS
             exit 1
