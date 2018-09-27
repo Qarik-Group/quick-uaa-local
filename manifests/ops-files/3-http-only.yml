@@ -5,4 +5,4 @@
 
 - type: replace
   path: /issuer/uri
-  value: http://localhost:8080
+  value: http://((route))

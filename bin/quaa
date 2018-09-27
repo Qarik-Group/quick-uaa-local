@@ -17,6 +17,9 @@ catalina_bin=${CATALINA_BIN:-${repo_root}/libexec/bin/catalina.sh}
 
 vars_store_arg="--vars-store ${vars_store}"
 
+export hostname=localhost
+[[ "$(which ifconfig)X" == "X" ]] || { export hostname=$(ifconfig | grep '\<inet\>' | cut -d ' ' -f2 | grep -v '127.0.0.1' | tail -n1); }
+[[ "$(which if)X" == "X" ]] || { export hostname=$(ip route get 1 | awk '{print $NF;exit}'); }
 
 tmp=$(mktemp -d)
 trap "rm -fr ${tmp}" EXIT
@@ -59,7 +62,7 @@ faketty() {
 validate_vars_file() {
     if [ ! -e $vars_file ]; then
         cat >> $vars_file <<-YAML
-route: "localhost:8080"
+route: "${hostname}:8080"
 YAML
         if [[ "${db_scheme:-}" == "postgresql" ]]; then
             cat >> $vars_file <<-YAML
