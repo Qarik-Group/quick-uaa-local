@@ -389,7 +389,7 @@ _ensure_java8_installed() {
         (>&2 echo "ERROR: Apache Tomcat 9 requires Java 8. Please install Java 8")
         exit 1
     }
-    [[ "$(java -version 2>&1 | grep 'java version "1.8')X" == "X" ]] && {
+    [[ "$(java -version 2>&1 | grep 'version "1.8')X" == "X" ]] && {
         (>&2 echo "ERROR: Apache Tomcat 9 seems to require Java 8. Please switch to Java 8 :/")
         exit 1
     }
